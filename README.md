@@ -1,4 +1,4 @@
-# A Synchronous Information Geometric Method for High-Dimensional Online Optimizatio
+# A Synchronous Information Geometric Method for High-Dimensional Online Optimization
 This is the official repository of paper 'An Invariant Information Geometric Method for High-Dimensional Online Optimization, consisting the source-code and full version of the work.
 
 Except for the common modules (e.g., numpy, scipy), our source code depends on the following modules.
