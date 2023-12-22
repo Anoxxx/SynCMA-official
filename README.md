@@ -6,6 +6,7 @@ Except for the common modules (e.g., numpy, scipy), our source code depends on t
 - Mandatory
   - PyPop7 (https://github.com/Evolutionary-Intelligence/pypop)
   - mujoco-py (https://github.com/openai/mujoco-py)
+  - gym (https://github.com/openai/gym)
 
 
 - Optional
