@@ -187,7 +187,6 @@ def run_trail(seed) :
     opt = optimizer(problem, options)
     # try:
     results = opt.optimize()
-    print(f'res {results["list_y"][:10]}')
     with open(f'./results/{save_file}.json', 'w') as f:
         json.dump([[round(y, 4) for y in results['list_y']]], f)
 
