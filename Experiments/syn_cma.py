@@ -2,7 +2,10 @@ import numpy as np
 from pypop7.optimizers.es.es import ES
 
 
-# Only in function _update_distribution_best did SynCMA different from the verified version of CMAES in pypop7, except for some initializations.
+## Only in function _update_distribution_best does SynCMA act different from the verified version of CMAES in pypop7, except for some initializations.
+
+## We've noticed a recent update with the verified version of CMAES in pypop7
+## This makes a SynCMA class that is built upon CMAES to demonstrate seems less 
 
 class SynCMA(ES):
     def __init__(self, problem, options):
@@ -19,10 +22,6 @@ class SynCMA(ES):
         self.c_c = None
         self.c_1 = None
         self.c_w = None
-        self._p_s_1 = None  # for evolution path update of cumulative step-length adaptation (CSA)
-        self._p_s_2 = None
-        self._p_c_1 = None  # for evolution path update of covariance matrix adaptation (CMA)
-        self._p_c_2 = None
         self._n_generations = None
 
     def _set_c_c(self):
@@ -46,16 +45,12 @@ class SynCMA(ES):
         self.d_sigma = self.options.get('d_sigma', self._set_d_sigma())
         self.c_c = self.options.get('c_c', self._set_c_c())
         self.c_1 = self.options.get('c_1', self._alpha_cov/(np.power(self.ndim_problem + 1.3, 2) + self._mu_eff))
-        self.c_w = self.options.get('c_w', self._set_c_w()) * 2 # This 'times 2' is to approximate several tricks that used in fine-tuned version of CMAES in pypop 7, when dimension is small or testing for rosenbrock, we recomment to omit this 'times 2'.
+        self.c_w = self.options.get('c_w', self._set_c_w()) * 2 # This 'times 2' is to approximate several tricks that used in fine-tuned version of CMAES in pypop 7, when dimension is small, we recomment to omit this 'times 2'.
         w_min = np.min([1.0 + self.c_1/self.c_w, 1.0 + 2.0*self._mu_eff_minus/(self._mu_eff + 2.0),
                         (1.0 - self.c_1 - self.c_w)/(self.ndim_problem*self.c_w)])
         self._w = np.where(w_apostrophe >= 0, 1.0/np.sum(w_apostrophe[w_apostrophe > 0])*w_apostrophe,
                            w_min/(-np.sum(w_apostrophe[w_apostrophe < 0]))*w_apostrophe)
-        self._p_s_1 = 1.0 - self.c_s
-        self._p_s_2 = np.sqrt(self._mu_eff*self.c_s*(2.0 - self.c_s))
-        self._p_c_2 = np.sqrt(self._mu_eff*self.c_c*(2.0 - self.c_c))
-        self._p_c_1 = 1.0 - self.c_c
-        # self.lam_0 = 1
+        
         if 'lam_0' in self.options.keys():
             self.lam_0 = self.options['lam_0']
         else:
@@ -65,9 +60,8 @@ class SynCMA(ES):
         self.dd = np.zeros((self.ndim_problem,))
         x = np.empty((self.n_individuals, self.ndim_problem))  # offspring
         mean = self._initialize_mean(is_restart)  # mean of Gaussian search distribution
-        p_s = np.zeros((self.ndim_problem,))  # evolution path for cumulative step-length adaptation (CSA)
-        p_c = np.zeros((self.ndim_problem,))  # evolution path for covariance matrix adaptation (CMA)
-        p_m = np.zeros((self.ndim_problem,))
+        p_c = np.zeros((self.ndim_problem,))  #p_c in paper
+        p_m = np.zeros((self.ndim_problem,))  #p_m in paper
         self.Q = np.zeros((self.ndim_problem, self.ndim_problem))
         cm = np.eye(self.ndim_problem)  # covariance matrix of Gaussian search distribution
         eig_ve = np.eye(self.ndim_problem)  # eigenvectors of covariance matrix
@@ -81,7 +75,7 @@ class SynCMA(ES):
         self.save_list_x = []
 
 
-        return x, mean, p_s, p_c, p_m, cm, eig_ve, eig_va, y
+        return x, mean, p_c, p_m, cm, eig_ve, eig_va, y
 
     ##############################  Below is the core part, while the above initialization is nearly a copy from CMA-ES implemented in pypop7, defining lot of unused variables
 
@@ -98,7 +92,7 @@ class SynCMA(ES):
         self.save_list_x.extend(np.round(x,3))
         return x, y
 
-    def _update_distribution_best(self, x=None, mean=None, p_s=None, p_c=None, p_m = None, cm=None, eig_ve=None, eig_va=None, y=None):
+    def _update_distribution_best(self, x=None, mean=None, p_c=None, p_m = None, cm=None, eig_ve=None, eig_va=None, y=None):
         order = np.argsort(y)
         d = (x - mean) / self.sigma # self.sigma is a constant that corresponds the initial learning rate of CMA-ES, that is 0.1 in paper
         wd = np.dot(self._w[:self.n_parents], d[order[:self.n_parents]])
@@ -136,29 +130,28 @@ class SynCMA(ES):
         eig_va = np.sqrt(np.where(eig_va < 0, 1e-8, eig_va))
         cm = np.dot(np.dot(eig_ve, np.diag(np.power(eig_va, 2))), np.transpose(eig_ve))
 
-        return mean, p_s, p_c, p_m, cm, eig_ve, eig_va
+        return mean, p_c, p_m, cm, eig_ve, eig_va
 
-    def restart_reinitialize(self, x=None, mean=None, p_s=None, p_c=None, p_m = None,
+    def restart_reinitialize(self, x=None, mean=None, p_c=None, p_m = None,
                              cm=None, eig_ve=None, eig_va=None, y=None):
         if ES.restart_reinitialize(self, y):
-            x, mean, p_s, p_c, p_m, cm, eig_ve, eig_va, y = self.initialize(True)
-        return x, mean, p_s, p_c, p_m, cm, eig_ve, eig_va, y
+            x, mean, p_c, p_m, cm, eig_ve, eig_va, y = self.initialize(True)
+        return x, mean, p_c, p_m, cm, eig_ve, eig_va, y
 
     def optimize(self, fitness_function=None, args=None):  # for all generations (iterations)
         fitness = ES.optimize(self, fitness_function)
-        x, mean, p_s, p_c, p_m, cm, eig_ve, eig_va, y = self.initialize()
+        x, mean, p_c, p_m, cm, eig_ve, eig_va, y = self.initialize()
         while not self._check_terminations():
             # sample and evaluate offspring population
             x, y = self.iterate(x, mean, eig_ve, eig_va, y, args)
             self._print_verbose_info(fitness, y)
             self._n_generations += 1
-            mean, p_s, p_c, p_m, cm, eig_ve, eig_va = self._update_distribution_best(x, mean, p_s, p_c, p_m, cm, eig_ve, eig_va, y)
+            mean, p_c, p_m, cm, eig_ve, eig_va = self._update_distribution_best(x, mean, p_c, p_m, cm, eig_ve, eig_va, y)
             if self.is_restart:
                 print('suprise!')
-                x, mean, p_s, p_c, p_m, cm, eig_ve, eig_va, y = self.restart_reinitialize(
-                    x, mean, p_s, p_c, p_m, cm, eig_ve, eig_va, y)
+                x, mean, p_c, p_m, cm, eig_ve, eig_va, y = self.restart_reinitialize(
+                    x, mean, p_c, p_m, cm, eig_ve, eig_va, y)
         results = self._collect(fitness, y, mean)
-        results['p_s'] = p_s
         results['p_c'] = p_c
         results['p_m'] = p_m
         results['eig_va'] = eig_va
