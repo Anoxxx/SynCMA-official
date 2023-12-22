@@ -2,10 +2,7 @@ import numpy as np
 from pypop7.optimizers.es.es import ES
 
 
-## Only in function _update_distribution_best does SynCMA act different from the verified version of CMAES in pypop7, except for some initializations.
-
-## We've noticed a recent update with the verified version of CMAES in pypop7
-## This makes a SynCMA class that is built upon CMAES to demonstrate seems less 
+## Only in function _update_distribution_best does SynCMA act different from the verified version of CMAES in pypop7@Oct2023, except for initializations of self.c_w and self.lam_0.
 
 class SynCMA(ES):
     def __init__(self, problem, options):
@@ -19,14 +16,10 @@ class SynCMA(ES):
         self._alpha_cov = 2.0
         self.c_s = None
         self.d_sigma = None
-        self.c_c = None
         self.c_1 = None
         self.c_w = None
         self._n_generations = None
-
-    def _set_c_c(self):
-        return (4.0 + self._mu_eff/self.ndim_problem)/(self.ndim_problem + 4.0 + 2.0*self._mu_eff/self.ndim_problem)
-
+        
     def _set_c_w(self):
         # minus 1e-8 for large population size (according to https://github.com/CyberAgentAILab/cmaes)
         return np.minimum(1.0 - self.c_1 - 1e-8, self._alpha_cov*(self._mu_eff + 1.0/self._mu_eff - 2.0) /
@@ -43,7 +36,6 @@ class SynCMA(ES):
             np.power(w_apostrophe[self.n_parents:], 2))
         self.c_s = self.options.get('c_s', (self._mu_eff + 2.0)/(self._mu_eff + self.ndim_problem + 5.0))
         self.d_sigma = self.options.get('d_sigma', self._set_d_sigma())
-        self.c_c = self.options.get('c_c', self._set_c_c())
         self.c_1 = self.options.get('c_1', self._alpha_cov/(np.power(self.ndim_problem + 1.3, 2) + self._mu_eff))
         self.c_w = self.options.get('c_w', self._set_c_w()) * 2 # This 'times 2' is to approximate several tricks that used in fine-tuned version of CMAES in pypop 7, when dimension is small, we recomment to omit this 'times 2'.
         w_min = np.min([1.0 + self.c_1/self.c_w, 1.0 + 2.0*self._mu_eff_minus/(self._mu_eff + 2.0),
